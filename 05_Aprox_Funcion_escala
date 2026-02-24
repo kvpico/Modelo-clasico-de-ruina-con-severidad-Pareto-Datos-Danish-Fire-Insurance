@@ -1,5 +1,20 @@
-##### aproximacion de funcion de escala con cramer modelado 
 
+##### aproximacion de funcion de escala con cramer 
+###############################################################
+# Parámetros del modelo
+###############################################################
+
+lambda_hat <- 0.5395
+alpha_hat  <- 1.2707
+xm_hat     <- xm   # o min(loss)
+
+mean_xi <- (alpha_hat * xm_hat)/(alpha_hat - 1)
+
+theta_loading <- 0.3
+
+c <- (1 + theta_loading) * lambda_hat * mean_xi
+
+#### 
 stehfest_coef <- function(N){
   
   if(N %% 2 != 0) stop("N debe ser par")
