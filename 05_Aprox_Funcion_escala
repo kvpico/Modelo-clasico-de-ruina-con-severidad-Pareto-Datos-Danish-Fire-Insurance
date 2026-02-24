@@ -1,0 +1,55 @@
+##### aproximacion de funcion de escala con cramer modelado 
+
+stehfest_coef <- function(N){
+  
+  if(N %% 2 != 0) stop("N debe ser par")
+  
+  V <- numeric(N)
+  
+  for(k in 1:N){
+    sum_val <- 0
+    for(j in floor((k+1)/2):min(k, N/2)){
+      sum_val <- sum_val +
+        j^(N/2) * factorial(2*j) /
+        ( factorial(N/2 - j) *
+            factorial(j) *
+            factorial(j-1) *
+            factorial(k-j) *
+            factorial(2*j-k) )
+    }
+    V[k] <- (-1)^(k + N/2) * sum_val
+  }
+  
+  return(V)
+}
+
+W_gaver <- function(x, N=8){
+  
+  V <- stehfest_coef(N)
+  ln2 <- log(2)
+  
+  sum_val <- 0
+  
+  for(k in 1:N){
+    theta_k <- k * ln2 / x
+    sum_val <- sum_val + V[k] / psi(theta_k)
+  }
+  
+  (ln2/x) * sum_val
+}
+
+#ruina 
+ruin_prob <- function(u){
+  1 - psi_prime_0 * W_gaver(u)
+}
+
+u_vals <- seq(0.5, 20, length=100)
+ruin_vals <- sapply(u_vals, ruin_prob)
+
+plot(u_vals, ruin_vals,
+     type="l",
+     col="darkred",
+     lwd=2,
+     main="Probabilidad de ruina",
+     xlab="Capital inicial u",
+     ylab="ψ(u)")
