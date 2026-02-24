@@ -1,0 +1,98 @@
+###############################################################
+# 03_poisson_arrival_process.R
+# Estimación del proceso de llegadas (Poisson)
+# Danish Fire Insurance Claims 1980–1990
+###############################################################
+
+# -------------------------------------------------------------
+# 1. Cargar datos con fechas reales
+# -------------------------------------------------------------
+
+library(evir)
+data(danish)
+
+# Las fechas están en el atributo "times"
+fechas <- as.Date(attr(danish, "times"))
+
+# Verificación
+head(fechas)
+
+###############################################################
+# 2. Construcción del rango completo de días
+###############################################################
+
+inicio <- min(fechas)
+fin    <- max(fechas)
+
+dias_totales <- seq(inicio, fin, by="day")
+
+cat("Total días en el periodo:", length(dias_totales), "\n")
+
+###############################################################
+# 3. Conteo de reclamos por día
+###############################################################
+
+conteo_diario <- table(fechas)
+
+# Crear vector con todos los días (incluyendo días sin reclamo)
+conteo_completo <- rep(0, length(dias_totales))
+names(conteo_completo) <- as.character(dias_totales)
+
+conteo_completo[names(conteo_diario)] <- conteo_diario
+
+conteo_completo <- as.numeric(conteo_completo)
+
+###############################################################
+# 4. Estadísticas descriptivas
+###############################################################
+
+tabla_frecuencias <- table(conteo_completo)
+print(tabla_frecuencias)
+
+lambda_hat <- mean(conteo_completo)
+
+cat("Estimador MLE Poisson (lambda):", lambda_hat, "\n")
+
+###############################################################
+# 5. Gráfico tipo dispersión (Figura similar a tesis)
+###############################################################
+
+plot(conteo_completo,
+     main="Conteo del número de reclamos por día",
+     xlab="Días",
+     ylab="Número de reclamos",
+     pch=1,
+     col="steelblue")
+
+grid(col="lightgray", lty="dotted")
+
+###############################################################
+# 6. Prueba de bondad de ajuste Chi-cuadrado
+###############################################################
+
+# Agrupar en clases: 0, 1, 2, 3+
+obs <- c(
+  sum(conteo_completo == 0),
+  sum(conteo_completo == 1),
+  sum(conteo_completo == 2),
+  sum(conteo_completo >= 3)
+)
+
+# Probabilidades teóricas
+p0 <- dpois(0, lambda_hat)
+p1 <- dpois(1, lambda_hat)
+p2 <- dpois(2, lambda_hat)
+p3 <- 1 - (p0 + p1 + p2)
+
+esp <- length(conteo_completo) * c(p0, p1, p2, p3)
+
+# Estadístico Chi-cuadrado
+chi2 <- sum((obs - esp)^2 / esp)
+
+gl <- length(obs) - 1 - 1   # k - p - 1
+
+p_valor <- 1 - pchisq(chi2, gl)
+
+cat("Estadístico Chi-cuadrado:", chi2, "\n")
+cat("Grados de libertad:", gl, "\n")
+cat("p-valor:", p_valor, "\n")
