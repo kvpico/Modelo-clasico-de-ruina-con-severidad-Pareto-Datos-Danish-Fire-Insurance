@@ -1,0 +1,40 @@
+lambda_hat   # intensidad Poisson
+alpha_hat    # parámetro Pareto
+xm_hat       # mínimo Pareto
+theta_loading # loading
+mean_xi      # E[ξ]
+c            # prima
+psi          # exponente de Laplace
+W_gaver      # función de escala
+
+
+##########################
+###############################################################
+# 00_parameters.R
+# Parámetros globales del modelo clásico ajustado
+###############################################################
+
+library(evir)
+data(danish)
+
+loss <- danish
+
+# Severidad Pareto
+n <- length(loss)
+xm_hat <- min(loss)
+alpha_hat <- n / sum(log(loss/xm_hat))
+
+# Intensidad Poisson (ya estimada)
+lambda_hat <- 0.5395
+
+# Media Pareto
+mean_xi <- (alpha_hat * xm_hat)/(alpha_hat - 1)
+
+# Loading
+theta_loading <- 0.3
+
+# Prima
+c <- (1 + theta_loading) * lambda_hat * mean_xi
+
+# Derivada en cero
+psi_prime_0 <- c - lambda_hat * mean_xi
