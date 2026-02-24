@@ -1,0 +1,146 @@
+###############################################################
+# 02_Ajuste_distribucion.R
+# Ajuste Exponencial vs Pareto
+# Comparación mediante MLE, P-P y Q-Q plots
+###############################################################
+
+# -------------------------------------------------------------
+# 1. Cargar datos
+# -------------------------------------------------------------
+
+library(evir)
+data(danish)
+
+loss <- danish
+n <- length(loss)
+
+loss_sorted <- sort(loss)
+p <- (1:n)/(n+1)   # probabilidades empíricas
+
+###############################################################
+# 2. Ajuste Exponencial (MLE)
+###############################################################
+
+# Estimador MLE
+beta_hat <- 1 / mean(loss)
+
+# Log-verosimilitud
+logLik_exp <- sum(log(beta_hat) - beta_hat * loss)
+
+cat("Estimador Exponencial beta:", beta_hat, "\n")
+cat("Log-verosimilitud Exponencial:", logLik_exp, "\n")
+
+# CDF Exponencial
+F_exp <- function(x){
+  1 - exp(-beta_hat * x)
+}
+
+# Cuantil Exponencial
+Q_exp <- function(p){
+  -log(1-p) / beta_hat
+}
+
+# -----------------------
+# P-P Plot Exponencial
+# -----------------------
+
+plot(p, F_exp(loss_sorted),
+     main="P-P Plot - Exponencial",
+     xlab="Empírico",
+     ylab="Modelo",
+     pch=16,
+     col="red",
+     cex=0.3,
+     xlim=c(0,1),
+     ylim=c(0,1))
+
+abline(0,1,lwd=2,col="gray")
+
+# -----------------------
+# Q-Q Plot Exponencial
+# -----------------------
+
+plot(Q_exp(p), loss_sorted,
+     main="Q-Q Plot - Exponencial",
+     xlab="Modelo",
+     ylab="Empírica",
+     pch=16,
+     col="red",
+     cex=0.3)
+
+abline(0,1,lwd=2,col="gray")
+
+###############################################################
+# 3. Ajuste Pareto Tipo I (MLE)
+###############################################################
+
+xm <- min(loss)
+
+alpha_hat <- n / sum(log(loss/xm))
+
+# Log-verosimilitud Pareto
+logLik_par <- sum(log(alpha_hat) +
+                  alpha_hat*log(xm) -
+                  (alpha_hat+1)*log(loss))
+
+cat("Estimador Pareto alpha:", alpha_hat, "\n")
+cat("xm:", xm, "\n")
+cat("Log-verosimilitud Pareto:", logLik_par, "\n")
+
+# Error estándar aproximado
+se_alpha <- alpha_hat / sqrt(n)
+
+cat("Error estándar alpha:", se_alpha, "\n")
+
+###############################################################
+# 4. P-P Plot Pareto
+###############################################################
+
+F_par <- function(x){
+  1 - (xm/x)^alpha_hat
+}
+
+plot(p, F_par(loss_sorted),
+     main="P-P Plot - Pareto",
+     xlab="Empírico",
+     ylab="Modelo",
+     pch=16,
+     col="black",
+     cex=0.3,
+     xlim=c(0,1),
+     ylim=c(0,1))
+
+abline(0,1,lwd=2,col="blue")
+
+###############################################################
+# 5. Q-Q Plot Pareto
+###############################################################
+
+Q_par <- function(p){
+  xm * (1-p)^(-1/alpha_hat)
+}
+
+plot(Q_par(p), loss_sorted,
+     main="Q-Q Plot - Pareto",
+     xlab="Modelo",
+     ylab="Empírica",
+     pch=16,
+     col="black",
+     cex=0.3,
+     xlim=c(0,170))
+
+abline(0,1,lwd=2,col="blue")
+
+###############################################################
+# 6. Comparación de modelos
+###############################################################
+
+cat("\nComparación Log-verosimilitud\n")
+cat("Exponencial:", logLik_exp, "\n")
+cat("Pareto:", logLik_par, "\n")
+
+if(logLik_par > logLik_exp){
+  cat("Pareto ajusta mejor según MLE.\n")
+} else {
+  cat("Exponencial ajusta mejor según MLE.\n")
+}
