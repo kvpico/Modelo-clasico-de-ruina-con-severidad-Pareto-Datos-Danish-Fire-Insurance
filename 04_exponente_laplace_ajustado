@@ -1,0 +1,83 @@
+###############################################################
+# 04_exponente_laplace.R
+# Exponente de Laplace del proceso Poisson compuesto
+# Severidad Pareto Tipo I
+###############################################################
+
+# -------------------------------------------------------------
+# 1. Parámetros estimados (importar de scripts anteriores)
+# -------------------------------------------------------------
+
+# Estos deben coincidir con resultados previos
+
+lambda_hat <- 0.5395        # intensidad Poisson
+alpha_hat  <- 1.2707        # estimador Pareto
+xm_hat     <- xm            # mínimo de la muestra
+
+# Media Pareto (existe porque alpha > 1)
+mean_xi <- (alpha_hat * xm_hat) / (alpha_hat - 1)
+
+# Carga de seguridad
+theta_loading <- 0.3
+
+# Prima
+c <- (1 + theta_loading) * lambda_hat * mean_xi
+
+# Derivada en cero
+psi_prime_0 <- c - lambda_hat * mean_xi
+
+cat("c:", c, "\n")
+cat("psi'(0+):", psi_prime_0, "\n")
+
+###############################################################
+# 2. Definición del exponente de Laplace
+###############################################################
+
+# ψ(θ) = cθ + λ ∫ (e^{-θx} - 1) F(dx)
+
+psi <- function(theta){
+
+  integrand <- function(x){
+    alpha_hat * xm_hat^alpha_hat *
+      x^(-(alpha_hat + 1)) *
+      (exp(-theta * x) - 1)
+  }
+
+  integral_val <- integrate(
+    integrand,
+    lower = xm_hat,
+    upper = Inf,
+    subdivisions = 1000,
+    rel.tol = 1e-8
+  )$value
+
+  return(c * theta + lambda_hat * integral_val)
+}
+
+###############################################################
+# 3. Evaluación y gráfico del exponente
+###############################################################
+
+theta_vals <- seq(0.001, 5, length=200)
+
+psi_vals <- sapply(theta_vals, psi)
+
+plot(theta_vals, psi_vals,
+     type="l",
+     col="blue",
+     lwd=2,
+     main="Exponente de Laplace ψ(θ)",
+     xlab="θ",
+     ylab="ψ(θ)")
+
+abline(h=0, lty=2)
+
+###############################################################
+# 4. Verificación condición de carga
+###############################################################
+
+if(psi_prime_0 > 0){
+  cat("Se cumple condición de carga de seguridad.\n")
+} else {
+  cat("No se cumple condición de carga.\n")
+}
