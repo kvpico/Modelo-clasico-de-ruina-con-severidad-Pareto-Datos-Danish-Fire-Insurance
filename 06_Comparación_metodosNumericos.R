@@ -30,7 +30,7 @@ W_exact <- function(x){
 }
 
 ###############################################################
-# 3. Exponente de Laplace ψ(s)
+# 3. Exponente de Laplace 
 ###############################################################
 
 psi <- function(s){
@@ -113,7 +113,7 @@ plot(x_vals,W_ex,
      ylim=range(W_ex),
      xlab="x",
      ylab="W(x)",
-     main="Comparación de métodos de inversión")
+     main="Aproximación de W(x)")
 
 lines(x_vals,W_gs,
       col="blue",
@@ -126,7 +126,7 @@ lines(x_vals,W_br,
       lwd=2)
 
 legend("bottomright",
-       legend=c("Exacta","Gaver–Stehfest","Bromwich"),
+       legend=c("W(x)","G–S","Bromwich"),
        col=c("red","blue","black"),
        lty=c(1,2,3),
        lwd=2)
