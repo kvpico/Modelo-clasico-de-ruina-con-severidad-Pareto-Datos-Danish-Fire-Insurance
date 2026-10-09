@@ -12,6 +12,13 @@ mean_xi <- (alpha_hat * xm_hat)/(alpha_hat - 1)
 
 theta_loading <- 0.3
 
+# Cálculo de la prima de la aseguradora mediante el principio del valor esperado
+# con un recargo de seguridad del 30%.
+# La prima se obtiene como:
+# c = (1 + theta) * lambda * E[X]
+# donde lambda es la frecuencia estimada de siniestros
+# y E[X] es la severidad media esperada de las pérdidas.
+
 c <- (1 + theta_loading) * lambda_hat * mean_xi
 
 #### 
