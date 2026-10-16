@@ -37,27 +37,34 @@ summary(danish)
 n <- length(danish)
 cat("Número total de observaciones:", n, "\n")
 
-# -------------------------------------------------------------
-# 3. Construcción de eje temporal artificial
-# -------------------------------------------------------------
+###############################################################
+# 3. Preparación de los datos para análisis exploratorio
+###############################################################
 
-# Con este paquete el dataset no incluye fechas exactas y para tener la visualización exploratoria, construimos una secuencia uniforme de fechas entre 1980 y 1990.
+loss <- as.numeric(danish)
 
-date_seq <- seq(
-  as.Date("1980-01-01"),
-  as.Date("1990-12-31"),
-  length.out = n
+# Verificación de los datos
+stopifnot(
+  length(loss) > 0,
+  all(is.finite(loss)),
+  all(loss > 0)
 )
 
-# -------------------------------------------------------------
-# 4. Gráfico de dispersión de pérdidas
-# -------------------------------------------------------------
+n <- length(loss)
+
+# Índice de observaciones
+indice <- seq_len(n)
+
+###############################################################
+# 4. Gráfico exploratorio de pérdidas
+###############################################################
 
 plot(
-  date_seq,
-  danish,
-  main = "Incendios en Dinamarca (1980–1990)",
-  xlab = "Fecha",
+  indice,
+  loss,
+  type = "p",
+  main = "Pérdidas por incendios en Dinamarca (1980-1990)",
+  xlab = "Número de observación",
   ylab = "Pérdida (millones DKK)",
   pch = 1,
   col = "steelblue",
