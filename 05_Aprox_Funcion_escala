@@ -4,7 +4,7 @@
 # Parámetros del modelo
 ###############################################################
 
-lambda_hat <- 0.5395
+lambda_hat <- 0.5397
 alpha_hat  <- 1.2707
 xm_hat     <- xm   # o min(loss)
 
