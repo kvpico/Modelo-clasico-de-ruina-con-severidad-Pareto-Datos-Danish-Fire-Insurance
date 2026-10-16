@@ -10,7 +10,7 @@
 
 # Estos deben coincidir con resultados previos
 
-lambda_hat <- 0.5395        # intensidad Poisson
+lambda_hat <- 0.5397        # intensidad Poisson
 alpha_hat  <- 1.2707        # estimador Pareto
 xm_hat     <- xm            # mínimo de la muestra
 
