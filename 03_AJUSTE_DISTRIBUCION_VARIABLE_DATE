@@ -152,3 +152,25 @@ if (p_valor < nivel_significancia) {
   )
   
 }
+
+###############################################################
+# Guardar estimación del proceso de Poisson
+###############################################################
+
+parametros_poisson <- list(
+  lambda_hat = lambda_hat,
+  total_reclamos = total_reclamos,
+  total_dias = total_dias,
+  fecha_inicio = min(fechas),
+  fecha_fin = max(fechas),
+  chi2 = chi2,
+  gl = gl,
+  p_valor = p_valor
+)
+
+saveRDS(
+  parametros_poisson,
+  file = "parametros_poisson.rds"
+)
+
+cat("Parámetros Poisson guardados.\n")
