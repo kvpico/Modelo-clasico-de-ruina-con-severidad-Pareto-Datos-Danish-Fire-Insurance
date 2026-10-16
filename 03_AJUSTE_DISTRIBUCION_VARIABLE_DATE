@@ -1,3 +1,4 @@
+
 ###############################################################
 # 03_poisson_arrival_process.R
 # Estimación del proceso de llegadas (Poisson)
@@ -13,6 +14,16 @@ data(danish)
 
 # Las fechas están en el atributo "times"
 fechas <- as.Date(attr(danish, "times"))
+# Verificar existencia y validez de las fechas
+
+stopifnot(
+  length(fechas) == length(danish),
+  all(!is.na(fechas))
+)
+
+cat("Primera fecha:", as.character(min(fechas)), "\n")
+cat("Última fecha:", as.character(max(fechas)), "\n")
+cat("Total reclamaciones:", length(fechas), "\n")
 
 # Verificación
 head(fechas)
@@ -50,6 +61,17 @@ tabla_frecuencias <- table(conteo_completo)
 print(tabla_frecuencias)
 
 lambda_hat <- mean(conteo_completo)
+# Verificación de la intensidad estimada
+
+total_reclamos <- sum(conteo_completo)
+total_dias <- length(conteo_completo)
+
+lambda_hat <- total_reclamos / total_dias
+
+cat("Total reclamaciones:", total_reclamos, "\n")
+cat("Total días observados:", total_dias, "\n")
+cat("Intensidad diaria estimada:", lambda_hat, "\n")
+cat("Intensidad redondeada:", round(lambda_hat, 4), "\n")
 
 cat("Estimador MLE Poisson (lambda):", lambda_hat, "\n")
 
@@ -85,6 +107,23 @@ p2 <- dpois(2, lambda_hat)
 p3 <- 1 - (p0 + p1 + p2)
 
 esp <- length(conteo_completo) * c(p0, p1, p2, p3)
+# Comprobación de frecuencias esperadas
+
+tabla_chi <- data.frame(
+  Categoria = c("0", "1", "2", "3 o más"),
+  Observada = obs,
+  Esperada = esp
+)
+
+print(tabla_chi)
+
+if (any(esp < 5)) {
+  warning(
+    "Existen frecuencias esperadas menores que 5. ",
+    "Es necesario reagrupar categorías o considerar ",
+    "otro procedimiento de evaluación."
+  )
+}
 
 # Estadístico Chi-cuadrado
 chi2 <- sum((obs - esp)^2 / esp)
@@ -92,7 +131,24 @@ chi2 <- sum((obs - esp)^2 / esp)
 gl <- length(obs) - 1 - 1   # k - p - 1
 
 p_valor <- 1 - pchisq(chi2, gl)
-
+nivel_significancia <- 0.05
 cat("Estadístico Chi-cuadrado:", chi2, "\n")
 cat("Grados de libertad:", gl, "\n")
 cat("p-valor:", p_valor, "\n")
+
+
+if (p_valor < nivel_significancia) {
+  
+  cat(
+    "Se rechaza la hipótesis de ajuste Poisson ",
+    "al nivel de significancia del 5%.\n"
+  )
+  
+} else {
+  
+  cat(
+    "No se rechaza la hipótesis de ajuste Poisson ",
+    "al nivel de significancia del 5%.\n"
+  )
+  
+}
