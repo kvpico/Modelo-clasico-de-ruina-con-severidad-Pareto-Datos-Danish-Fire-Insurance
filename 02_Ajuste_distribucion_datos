@@ -142,5 +142,4 @@ cat("Pareto:", logLik_par, "\n")
 if(logLik_par > logLik_exp){
   cat("Pareto ajusta mejor según MLE.\n")
 } else {
-  cat("Exponencial ajusta mejor según MLE.\n")
-}
+  
