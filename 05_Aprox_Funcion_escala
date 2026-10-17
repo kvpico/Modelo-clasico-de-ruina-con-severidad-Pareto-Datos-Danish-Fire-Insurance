@@ -1,77 +1,324 @@
-
-##### aproximacion de funcion de escala con cramer 
 ###############################################################
-# Parámetros del modelo
+# 05_APROX_FUNCION_ESCALA.R
+# Aproximación de funciones de escala mediante Gaver-Stehfest
+# Modelo clásico de Cramér-Lundberg con severidad Pareto
 ###############################################################
 
-lambda_hat <- 0.5397
-alpha_hat  <- 1.2707
-xm_hat     <- xm   # o min(loss)
+# Ejecutar previamente los archivos 02, 03 y 04.
+# Este archivo utiliza psi(), c y psi_prime_0
+# calculados en el archivo 04.
 
-mean_xi <- (alpha_hat * xm_hat)/(alpha_hat - 1)
+if (!exists("psi") || !is.function(psi)) {
+  stop(
+    "Primero debe ejecutarse el archivo 04, ",
+    "que define el exponente de Laplace."
+  )
+}
 
-theta_loading <- 0.3
 
-# Cálculo de la prima de la aseguradora mediante el principio del valor esperado
-# con un recargo de seguridad del 30%.
-# La prima se obtiene como:
-# c = (1 + theta) * lambda * E[X]
-# donde lambda es la frecuencia estimada de siniestros
-# y E[X] es la severidad media esperada de las pérdidas.
+###############################################################
+# 05_APROX_FUNCION_ESCALA.R
+# Modelo clásico de Cramér-Lundberg
+# Severidad: Pareto Tipo I
+# Método numérico: Gaver-Stehfest
+###############################################################
 
-c <- (1 + theta_loading) * lambda_hat * mean_xi
+###############################################################
+# 1. PARÁMETROS DEL MODELO
+###############################################################
 
-#### 
-stehfest_coef <- function(N){
-  
-  if(N %% 2 != 0) stop("N debe ser par")
-  
-  V <- numeric(N)
-  
-  for(k in 1:N){
-    sum_val <- 0
-    for(j in floor((k+1)/2):min(k, N/2)){
-      sum_val <- sum_val +
-        j^(N/2) * factorial(2*j) /
-        ( factorial(N/2 - j) *
-            factorial(j) *
-            factorial(j-1) *
-            factorial(k-j) *
-            factorial(2*j-k) )
-    }
-    V[k] <- (-1)^(k + N/2) * sum_val
+# Se utilizan los parámetros ya calculados en el archivo 04.
+# No se vuelven a asignar lambda, alpha, xm ni c.
+
+variables_necesarias <- c(
+  "lambda_hat", "alpha_hat", "xm_hat",
+  "mean_xi", "theta_loading",
+  "c", "psi_prime_0", "psi"
+)
+
+faltantes <- variables_necesarias[
+  !vapply(variables_necesarias, exists, logical(1),
+          envir = .GlobalEnv)
+]
+
+if (length(faltantes) > 0) {
+  stop("Faltan variables del archivo 04: ",
+       paste(faltantes, collapse = ", "))
+}
+
+stopifnot(
+  is.function(psi),
+  lambda_hat > 0,
+  alpha_hat > 1,
+  xm_hat > 0,
+  theta_loading > 0,
+  c > 0,
+  psi_prime_0 > 0
+)
+
+# Verificar coherencia del principio del valor esperado
+media_verificada <- alpha_hat * xm_hat / (alpha_hat - 1)
+c_verificada <- (1 + theta_loading) *
+  lambda_hat * media_verificada
+
+margen_verificado <- c_verificada -
+  lambda_hat * media_verificada
+
+stopifnot(
+  isTRUE(all.equal(mean_xi, media_verificada)),
+  isTRUE(all.equal(c, c_verificada)),
+  isTRUE(all.equal(psi_prime_0, margen_verificado))
+)
+
+cat("\n--- PARÁMETROS DEL MODELO ---\n")
+cat("Lambda:", lambda_hat, "\n")
+cat("Alpha:", alpha_hat, "\n")
+cat("xm:", xm_hat, "\n")
+cat("Media Pareto:", mean_xi, "\n")
+cat("Prima c:", c, "\n")
+cat("Margen de seguridad:", psi_prime_0, "\n")
+
+
+###############################################################
+# 2. COEFICIENTES DE GAVER-STEHFEST
+###############################################################
+
+stehfest_coef <- function(N) {
+
+  if (length(N) != 1 || !is.finite(N) ||
+      N < 2 || N %% 1 != 0 || N %% 2 != 0) {
+    stop("N debe ser un entero positivo y par.")
   }
-  
+
+  V <- numeric(N)
+
+  for (k in seq_len(N)) {
+
+    suma <- 0
+
+    j_inicio <- floor((k + 1) / 2)
+    j_fin <- min(k, N / 2)
+
+    for (j in j_inicio:j_fin) {
+
+      termino <- j^(N / 2) * factorial(2 * j) /
+        (
+          factorial(N / 2 - j) *
+          factorial(j) *
+          factorial(j - 1) *
+          factorial(k - j) *
+          factorial(2 * j - k)
+        )
+
+      suma <- suma + termino
+    }
+
+    V[k] <- (-1)^(k + N / 2) * suma
+  }
+
   return(V)
 }
 
-W_gaver <- function(x, N=8){
-  
+
+###############################################################
+# 3. APROXIMACIÓN DE LA FUNCIÓN DE ESCALA W(u)
+###############################################################
+
+# Transformada de Laplace:
+# L{W}(beta) = 1 / psi(beta)
+
+W_gaver <- function(u, N = 8) {
+
+  if (length(u) != 1 || !is.finite(u) || u < 0) {
+    stop("u debe ser un número finito no negativo.")
+  }
+
+  # Valor teórico en el origen para Cramér-Lundberg
+  if (u == 0) {
+    return(1 / c)
+  }
+
   V <- stehfest_coef(N)
   ln2 <- log(2)
-  
-  sum_val <- 0
-  
-  for(k in 1:N){
-    theta_k <- k * ln2 / x
-    sum_val <- sum_val + V[k] / psi(theta_k)
+
+  suma <- 0
+
+  for (k in seq_len(N)) {
+
+    beta_k <- k * ln2 / u
+    psi_k <- psi(beta_k)
+
+    if (!is.finite(psi_k) || psi_k <= 0) {
+      stop("Error al evaluar psi(beta) para beta = ",
+           beta_k)
+    }
+
+    suma <- suma + V[k] / psi_k
   }
-  
-  (ln2/x) * sum_val
+
+  W_u <- (ln2 / u) * suma
+
+  return(W_u)
 }
 
-#ruina 
-ruin_prob <- function(u){
-  1 - psi_prime_0 * W_gaver(u)
+
+###############################################################
+# 4. PROBABILIDAD DE RUINA EVENTUAL
+###############################################################
+
+# Psi(u) = 1 - psi'(0+) * W(u)
+
+ruin_prob <- function(u, N = 8) {
+
+  W_u <- W_gaver(u, N)
+
+  prob_ruina <- 1 - psi_prime_0 * W_u
+
+  return(prob_ruina)
 }
 
-u_vals <- seq(0.5, 20, length=100)
-ruin_vals <- sapply(u_vals, ruin_prob)
 
-plot(u_vals, ruin_vals,
-     type="l",
-     col="darkred",
-     lwd=2,
-     main="Probabilidad de ruina",
-     xlab="Capital inicial u",
-     ylab="ψ(u)")
+###############################################################
+# 5. COMPROBACIONES TEÓRICAS
+###############################################################
+
+cat("\n--- COMPROBACIONES TEÓRICAS ---\n")
+
+# Función de escala en el origen
+W_cero <- W_gaver(0)
+
+cat("W(0) calculado:", W_cero, "\n")
+cat("W(0) teórico:", 1 / c, "\n")
+
+# Probabilidad de ruina en u = 0
+ruina_cero <- ruin_prob(0)
+
+ruina_cero_teorica <- 1 / (1 + theta_loading)
+
+cat("Ruina en u=0:", ruina_cero, "\n")
+cat("Ruina teórica en u=0:",
+    ruina_cero_teorica, "\n")
+
+stopifnot(
+  isTRUE(all.equal(W_cero, 1 / c)),
+  isTRUE(all.equal(ruina_cero,
+                   ruina_cero_teorica))
+)
+
+
+###############################################################
+# 6. ESTABILIDAD NUMÉRICA
+###############################################################
+
+# Comparación con distintos números de términos
+
+u_prueba <- c(0.5, 1, 2, 5, 10, 20)
+
+comparacion_05 <- data.frame(
+  Capital = u_prueba,
+  N8 = sapply(u_prueba, ruin_prob, N = 8),
+  N10 = sapply(u_prueba, ruin_prob, N = 10),
+  N12 = sapply(u_prueba, ruin_prob, N = 12)
+)
+
+comparacion_05$Dif_8_10 <- abs(
+  comparacion_05$N8 - comparacion_05$N10
+)
+
+comparacion_05$Dif_10_12 <- abs(
+  comparacion_05$N10 - comparacion_05$N12
+)
+
+cat("\n--- COMPARACIÓN DE ESTABILIDAD ---\n")
+
+print(comparacion_05, digits = 8)
+
+
+###############################################################
+# 7. CÁLCULO DE PROBABILIDADES DE RUINA
+###############################################################
+
+u_vals <- seq(0.5, 20, length.out = 100)
+
+ruin_vals <- sapply(
+  u_vals,
+  ruin_prob,
+  N = 8
+)
+
+stopifnot(all(is.finite(ruin_vals)))
+
+cat("\n--- RESULTADOS DE RUINA ---\n")
+
+cat("Probabilidad mínima:",
+    min(ruin_vals), "\n")
+
+cat("Probabilidad máxima:",
+    max(ruin_vals), "\n")
+
+cat("Probabilidades entre 0 y 1:",
+    all(ruin_vals >= 0 & ruin_vals <= 1), "\n")
+
+cat("Probabilidad no creciente:",
+    all(diff(ruin_vals) <= 1e-8), "\n")
+
+# No se modifican artificialmente probabilidades
+# fuera del intervalo [0,1].
+
+
+###############################################################
+# 8. GRÁFICO DE PROBABILIDAD DE RUINA
+###############################################################
+
+# Guardar figura en PNG para reproducibilidad
+
+png(
+  filename = "05_probabilidad_ruina.png",
+  width = 1200,
+  height = 800,
+  res = 150
+)
+
+par(mar = c(4.5, 4.5, 3, 1))
+
+plot(
+  u_vals,
+  ruin_vals,
+  type = "l",
+  col = "darkred",
+  lwd = 2,
+  main = "Probabilidad de ruina - Cramér-Lundberg",
+  xlab = "Capital inicial u",
+  ylab = expression(Psi(u)),
+  ylim = c(0, 1)
+)
+
+grid()
+
+dev.off()
+
+cat("\nGráfico guardado como:",
+    "05_probabilidad_ruina.png\n")
+
+
+###############################################################
+# 9. GUARDAR RESULTADOS
+###############################################################
+
+resultados_05 <- list(
+  lambda_hat = lambda_hat,
+  alpha_hat = alpha_hat,
+  xm_hat = xm_hat,
+  c = c,
+  psi_prime_0 = psi_prime_0,
+  capital = u_vals,
+  probabilidad_ruina = ruin_vals,
+  comparacion_estabilidad = comparacion_05
+)
+
+saveRDS(
+  resultados_05,
+  file = "resultados_funcion_escala.rds"
+)
+
+cat("\nArchivo 05 ejecutado hasta el final.\n")
