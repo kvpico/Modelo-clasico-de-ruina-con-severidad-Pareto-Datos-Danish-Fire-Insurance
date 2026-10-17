@@ -77,8 +77,25 @@ abline(0,1,lwd=2,col="gray")
 xm <- min(loss)
 
 alpha_hat <- n / sum(log(loss/xm))
+###############################################################
+# Guardar parámetros estimados de Pareto
+###############################################################
 
-# Log-verosimilitud Pareto
+parametros_pareto <- list(
+  alpha_hat = alpha_hat,
+  xm_hat = xm,
+  mean_xi = alpha_hat * xm / (alpha_hat - 1),
+  n = n
+)
+
+saveRDS(
+  parametros_pareto,
+  file = "parametros_pareto.rds"
+)
+
+cat("Parámetros Pareto guardados correctamente.\n")
+
+######### Log-verosimilitud Pareto
 logLik_par <- sum(log(alpha_hat) +
                   alpha_hat*log(xm) -
                   (alpha_hat+1)*log(loss))
