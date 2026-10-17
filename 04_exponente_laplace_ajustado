@@ -3,31 +3,56 @@
 # Exponente de Laplace del proceso Poisson compuesto
 # Severidad Pareto Tipo I
 ###############################################################
+###############################################################
+# 1. Parámetros estimados y cálculo de primas
+###############################################################
 
-# -------------------------------------------------------------
-# 1. Parámetros estimados (importar de scripts anteriores)
-# -------------------------------------------------------------
+# Recuperar parámetros de los archivos 02 y 03
+parametros_pareto <- readRDS("parametros_pareto.rds")
+parametros_poisson <- readRDS("parametros_poisson.rds")
 
-# Estos deben coincidir con resultados previos
+alpha_hat <- parametros_pareto$alpha_hat
+xm_hat <- parametros_pareto$xm_hat
+lambda_hat <- parametros_poisson$lambda_hat
 
-lambda_hat <- 0.5397        # intensidad Poisson
-alpha_hat  <- 1.2707        # estimador Pareto
-xm_hat     <- xm            # mínimo de la muestra
+# Recargo de seguridad del 30 %
+theta_loading <- 0.30
 
-# Media Pareto (existe porque alpha > 1)
-mean_xi <- (alpha_hat * xm_hat) / (alpha_hat - 1)
+# Verificar condiciones del modelo
+stopifnot(
+  is.finite(alpha_hat),
+  alpha_hat > 1,
+  is.finite(xm_hat),
+  xm_hat > 0,
+  is.finite(lambda_hat),
+  lambda_hat > 0
+)
 
-# Carga de seguridad
-theta_loading <- 0.3
+# Esperanza de la severidad Pareto tipo I
+mean_xi <- alpha_hat * xm_hat / (alpha_hat - 1)
 
-# Prima
-c <- (1 + theta_loading) * lambda_hat * mean_xi
+# Costo esperado de reclamaciones por unidad de tiempo
+expected_claim_rate <- lambda_hat * mean_xi
 
-# Derivada en cero
-psi_prime_0 <- c - lambda_hat * mean_xi
+# Principio del valor esperado (Schmidli, 2017)
+c <- (1 + theta_loading) * expected_claim_rate
 
-cat("c:", c, "\n")
-cat("psi'(0+):", psi_prime_0, "\n")
+# Margen de seguridad y derivada en cero
+psi_prime_0 <- c - expected_claim_rate
+
+# Comprobaciones
+stopifnot(
+  is.finite(c),
+  psi_prime_0 > 0
+)
+
+cat("Lambda estimada:", lambda_hat, "\n")
+cat("Alpha estimada:", alpha_hat, "\n")
+cat("xm estimado:", xm_hat, "\n")
+cat("Esperanza Pareto:", mean_xi, "\n")
+cat("Tasa de primas c:", c, "\n")
+cat("Margen de seguridad:", psi_prime_0, "\n")
+cat("Recargo:", theta_loading * 100, "%\n")
 
 ###############################################################
 # 2. Definición del exponente de Laplace
@@ -35,14 +60,30 @@ cat("psi'(0+):", psi_prime_0, "\n")
 
 # ψ(θ) = cθ + λ ∫ (e^{-θx} - 1) F(dx)
 
-psi <- function(theta){
+###############################################################
+# 2. Exponente de Laplace
+###############################################################
 
-  integrand <- function(x){
-    alpha_hat * xm_hat^alpha_hat *
-      x^(-(alpha_hat + 1)) *
-      (exp(-theta * x) - 1)
+psi <- function(theta) {
+  
+  stopifnot(
+    length(theta) == 1,
+    is.finite(theta),
+    theta >= 0
+  )
+  
+  if (theta == 0) {
+    return(0)
   }
-
+  
+  integrand <- function(x) {
+    
+    densidad <- alpha_hat * xm_hat^alpha_hat *
+      x^(-alpha_hat - 1)
+    
+    densidad * expm1(-theta * x)
+  }
+  
   integral_val <- integrate(
     integrand,
     lower = xm_hat,
@@ -50,27 +91,51 @@ psi <- function(theta){
     subdivisions = 1000,
     rel.tol = 1e-8
   )$value
-
-  return(c * theta + lambda_hat * integral_val)
+  
+  c * theta + lambda_hat * integral_val
 }
 
+###############################################################
+# 3. Verificación del exponente de Laplace
+###############################################################
+
+# Verificación en el origen
+cat("psi(0):", psi(0), "\n")
+
+# Derivada teórica en cero
+cat("psi'(0+) teórica:", psi_prime_0, "\n")
+
+# Aproximación numérica de la derivada
+h <- 1e-4
+
+psi_prime_num <- psi(h) / h
+
+cat("Derivada aproximada:", psi_prime_num, "\n")
+
+# Diferencia entre ambas
+error_derivada <- abs(psi_prime_num - psi_prime_0)
+
+cat("Diferencia:", error_derivada, "\n")
 ###############################################################
 # 3. Evaluación y gráfico del exponente
 ###############################################################
 
-theta_vals <- seq(0.001, 5, length=200)
+theta_vals <- seq(0.001, 5, length = 200)
 
 psi_vals <- sapply(theta_vals, psi)
 
-plot(theta_vals, psi_vals,
-     type="l",
-     col="blue",
-     lwd=2,
-     main="Exponente de Laplace ψ(θ)",
-     xlab="θ",
-     ylab="ψ(θ)")
+plot(
+  theta_vals,
+  psi_vals,
+  type = "l",
+  col = "blue",
+  lwd = 2,
+  main = "Exponente de Laplace",
+  xlab = expression(beta),
+  ylab = expression(psi(beta))
+)
 
-abline(h=0, lty=2)
+abline(h = 0, lty = 2)
 
 ###############################################################
 # 4. Verificación condición de carga
@@ -81,3 +146,37 @@ if(psi_prime_0 > 0){
 } else {
   cat("No se cumple condición de carga.\n")
 }
+
+###############################################################
+# 4. Guardar resultados del modelo
+###############################################################
+
+modelo_parametros <- list(
+  lambda_hat = lambda_hat,
+  alpha_hat = alpha_hat,
+  xm_hat = xm_hat,
+  theta_loading = theta_loading,
+  mean_xi = mean_xi,
+  c = c,
+  psi_prime_0 = psi_prime_0
+)
+
+saveRDS(
+  modelo_parametros,
+  "parametros_modelo.rds"
+)
+
+cat("Parámetros del modelo guardados.\n")
+
+# Verificar que el exponente sea creciente
+all(diff(psi_vals) > 0)
+
+# Mostrar el valor de la prima
+c
+
+# Mostrar el margen de seguridad
+psi_prime_0
+
+# Verificar el exponente en el origen
+psi(0)
+
